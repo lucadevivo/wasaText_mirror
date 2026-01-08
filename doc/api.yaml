@@ -237,7 +237,7 @@ paths:
                   type: string
                   enum: [text, image]
                   example: "text"
-                replyToId:  # <--- Aggiunta opzionale
+                replyToId:
                   type: integer
                   description: ID del messaggio a cui si sta rispondendo
                   example: 5001

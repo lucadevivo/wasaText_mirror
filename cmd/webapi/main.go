@@ -69,6 +69,7 @@ func run() error {
 		return err
 	}
 
+
 	// Init logging
 	logger := logrus.New()
 	logger.SetOutput(os.Stdout)
