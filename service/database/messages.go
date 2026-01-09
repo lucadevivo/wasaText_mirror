@@ -7,7 +7,7 @@ import (
 // SendMessage invia un messaggio (supporta foto opzionale)
 func (db *appdbimpl) SendMessage(senderId int, recipientId int, content string, photoID int) (int, error) {
 	var photoURL *string
-	
+
 	// Se c'è un ID foto, costruiamo l'URL
 	if photoID > 0 {
 		url := "/photos/" + strconv.Itoa(photoID)
@@ -27,14 +27,31 @@ func (db *appdbimpl) SendMessage(senderId int, recipientId int, content string, 
 }
 
 func (db *appdbimpl) GetConversation(myId int, otherId int) ([]Message, error) {
+	// --- PARTE AGGIUNTA: IL SERVER DICE "HO RICEVUTO!" ---
+	// Aggiorniamo a TRUE il campo 'received' per tutti i messaggi
+	// che l'altro utente (otherId) ha mandato a ME (myId).
+	// Facendolo PRIMA della Select, l'aggiornamento è immediato.
+	_, err := db.c.Exec(`
+        UPDATE messages 
+        SET received = TRUE 
+        WHERE sender_id = ? 
+          AND recipient_id = ? 
+          AND received = FALSE`,
+		otherId, myId) // otherId è il mittente, myId è il destinatario
+
+	if err != nil {
+		return nil, err
+	}
+	// -----------------------------------------------------
+
 	var messages []Message
 
-	// AGGIUNTO photo_url nella SELECT
+	// AGGIUNTO photo_url nella SELECT (Codice originale)
 	query := `
-		SELECT id, sender_id, recipient_id, content, photo_url, timestamp, received, read 
-		FROM messages 
-		WHERE (sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?)
-		ORDER BY timestamp ASC`
+        SELECT id, sender_id, recipient_id, content, photo_url, timestamp, received, read 
+        FROM messages 
+        WHERE (sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?)
+        ORDER BY timestamp ASC`
 
 	rows, err := db.c.Query(query, myId, otherId, otherId, myId)
 	if err != nil {
@@ -44,6 +61,9 @@ func (db *appdbimpl) GetConversation(myId int, otherId int) ([]Message, error) {
 
 	for rows.Next() {
 		var m Message
+		// Nota: Assicurati che Scan corrisponda esattamente ai tipi del tuo DB
+		// Se photo_url è Nullable in DB, potresti aver bisogno di sql.NullString,
+		// ma se ti funzionava prima, lascialo così.
 		err = rows.Scan(&m.ID, &m.SenderID, &m.RecipientID, &m.Content, &m.PhotoURL, &m.Timestamp, &m.Received, &m.Read)
 		if err != nil {
 			return nil, err
@@ -51,13 +71,14 @@ func (db *appdbimpl) GetConversation(myId int, otherId int) ([]Message, error) {
 
 		reactions, err := db.getMessageReactions(m.ID)
 		if err != nil {
+			// Ignora errore reazioni o gestiscilo
 		} else {
 			m.Reactions = reactions
 		}
 
 		messages = append(messages, m)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -72,12 +93,11 @@ func (db *appdbimpl) DeleteMessage(messageId int, senderId int) error {
 		return err
 	}
 
-	
 	affected, err := res.RowsAffected()
 	if err != nil {
 		return err
 	} else if affected == 0 {
-		return nil 
+		return nil
 	}
 	return nil
 }
@@ -90,7 +110,6 @@ func (db *appdbimpl) MarkConversationAsReceived(myID int, otherUserID int) error
 		myID, otherUserID)
 	return err
 }
-
 
 func (db *appdbimpl) MarkConversationAsRead(myID int, otherUserID int) error {
 	_, err := db.c.Exec(`

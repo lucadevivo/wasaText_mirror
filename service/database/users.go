@@ -3,7 +3,6 @@ package database
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"strconv"
 )
 
@@ -48,7 +47,7 @@ func (db *appdbimpl) SearchUsers(query string) ([]User, error) {
 
 	// Usiamo i wildcard % per cercare "contiene"
 	searchTerm := "%" + query + "%"
-	
+
 	// Nota: includiamo photo_url nella SELECT
 	rows, err := db.c.Query("SELECT id, username, photo_url FROM users WHERE username LIKE ?", searchTerm)
 	if err != nil {
@@ -60,17 +59,16 @@ func (db *appdbimpl) SearchUsers(query string) ([]User, error) {
 		var u User
 		// Gestiamo il caso in cui photo_url sia NULL
 		var photoURL sql.NullString
-		
+
 		err = rows.Scan(&u.ID, &u.Username, &photoURL)
 		if err != nil {
 			return nil, err
 		}
-		
 
 		if photoURL.Valid {
 			u.PhotoURL = photoURL.String
 		}
-		
+
 		users = append(users, u)
 	}
 
@@ -84,7 +82,6 @@ func (db *appdbimpl) SearchUsers(query string) ([]User, error) {
 // SetUserPhoto imposta la foto profilo dell'utente
 func (db *appdbimpl) SetUserPhoto(userID int, photoID int) error {
 	photoURL := "/photos/" + strconv.Itoa(photoID)
-	
 
 	res, err := db.c.Exec("UPDATE users SET photo_url = ? WHERE id = ?", photoURL, userID)
 	if err != nil {
@@ -95,10 +92,9 @@ func (db *appdbimpl) SetUserPhoto(userID int, photoID int) error {
 	if err != nil {
 		return err
 	}
-	
 
 	if affected == 0 {
-		return errors.New("nessun utente trovato con questo ID") 
+		return errors.New("nessun utente trovato con questo ID")
 	}
 
 	return nil

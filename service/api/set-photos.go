@@ -8,8 +8,6 @@ import (
 
 	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/api/reqcontext"
 	"github.com/julienschmidt/httprouter"
-
-	"fmt"
 )
 
 // Struct condivisa per il body
